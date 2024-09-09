@@ -3,7 +3,10 @@
 
 #include "Core/CCSGameStateBase.h"
 
+#include "Core/CCSGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Toy/Toy.h"
 
 ACCSGameStateBase::ACCSGameStateBase()
 {
@@ -16,11 +19,31 @@ void ACCSGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ACCSGameStateBase, ParticipantScoreInfos);
+	DOREPLIFETIME(ACCSGameStateBase, CurrentToy);
+	DOREPLIFETIME(ACCSGameStateBase, bCurrentToyLaunched);
+	DOREPLIFETIME(ACCSGameStateBase, TimeLeft);
+	DOREPLIFETIME(ACCSGameStateBase, OnToyCapturedDelegate);
+}
+
+void ACCSGameStateBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (HasAuthority())
+	{
+		ACCSGameModeBase* GameMode = Cast<ACCSGameModeBase>(UGameplayStatics::GetGameMode(this));
+		TimeLeft = GameMode->GetGameDuration();
+	}
 }
 
 void ACCSGameStateBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (HasAuthority())
+	{
+		TimeLeft -= DeltaSeconds;
+	}
 
 	int Index = 1;
 	for (const auto& ParticipantScoreInfo : ParticipantScoreInfos)
@@ -29,6 +52,16 @@ void ACCSGameStateBase::Tick(float DeltaSeconds)
 		GEngine->AddOnScreenDebugMessage(Index, 0.f, FColor::Orange, DebugMessage);
 		Index++;
 	}
+
+	{
+		const FString DebugMessage = FString::Printf(TEXT("Toy is %s"), bCurrentToyLaunched ? TEXT("in game") : TEXT("not in game"));
+		GEngine->AddOnScreenDebugMessage(Index, 0.f, FColor::Orange, DebugMessage);
+	}
+}
+
+void ACCSGameStateBase::OnRep_ParticipantScoreInfos()
+{
+	OnParticipantsUpdatedDelegate.Broadcast();
 }
 
 void ACCSGameStateBase::RegisterNewParticipant(AActor* InParticipant)
@@ -39,6 +72,8 @@ void ACCSGameStateBase::RegisterNewParticipant(AActor* InParticipant)
 	}
 
 	ParticipantScoreInfos.AddUnique(FParticipantScoreInfo(InParticipant));
+
+	OnNewParticipantRegisteredDelegate.Broadcast(InParticipant);
 }
 
 void ACCSGameStateBase::IncreaseParticipantScore(AActor* InParticipant, float InDeltaScore)
@@ -53,4 +88,47 @@ void ACCSGameStateBase::IncreaseParticipantScore(AActor* InParticipant, float In
 	{
 		ParticipantScoreInfos[ParticipantScoreInfoIndex].Score += InDeltaScore;
 	}
+}
+
+void ACCSGameStateBase::RegisterNewToy(AToy* InToy)
+{
+	CurrentToy = InToy;
+
+	OnToySpawnedDelegate.Broadcast(CurrentToy);
+}
+
+void ACCSGameStateBase::OnToyLaunched(AToy* InToy)
+{
+	bCurrentToyLaunched = true;
+	OnToyLaunchedDelegate.Broadcast(InToy);
+}
+
+void ACCSGameStateBase::OnGameFinished_Implementation()
+{
+	OnGameFinishedDelegate.Broadcast();
+}
+
+void ACCSGameStateBase::OnToyCaptured(AToy* InToy, AActor* InActor)
+{
+	IncreaseParticipantScore(InActor, InToy->GetScore());
+	
+	CurrentToy = nullptr;
+	bCurrentToyLaunched = false;
+
+	OnToyCaptured_NetMulticast(InToy, InActor);
+}
+
+void ACCSGameStateBase::OnToyCaptured_NetMulticast_Implementation(AToy* InToy, AActor* InActor)
+{
+	OnToyCapturedDelegate.Broadcast(InActor);
+}
+
+bool ACCSGameStateBase::CanSpawnToy() const
+{
+	return !bGameFinished && !bCurrentToyLaunched;
+}
+
+AToy* ACCSGameStateBase::GetCurrentToy() const
+{
+	return CurrentToy;
 }

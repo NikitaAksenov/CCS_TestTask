@@ -13,5 +13,12 @@ UCLASS()
 class CCS_TESTTASK_API ACCSGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float GameDuration;
+
+public:
+	UFUNCTION(BlueprintCallable)
+	float GetGameDuration() const;
 };

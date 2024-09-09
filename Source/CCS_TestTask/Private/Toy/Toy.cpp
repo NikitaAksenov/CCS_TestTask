@@ -15,9 +15,23 @@ AToy::AToy()
 
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMesh"));
 	RootComponent = StaticMesh;
+	StaticMesh->SetSimulatePhysics(false);
 
 	PickUpSphere = CreateDefaultSubobject<USphereComponent>(TEXT("PickUpSphere"));
 	PickUpSphere->SetupAttachment(StaticMesh);
+}
+
+void AToy::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (HasAuthority())
+	{
+		if (ACCSGameStateBase* CCSGameState = Cast<ACCSGameStateBase>(GetWorld()->GetGameState()))
+		{
+			CCSGameState->RegisterNewToy(this);
+		}
+	}
 }
 
 void AToy::BeginPlay()
@@ -44,11 +58,20 @@ void AToy::OnToyBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* O
 		if (AICharacter &&
 			CCSGameState)
 		{
-			CCSGameState->IncreaseParticipantScore(OtherActor, Score);
+			CCSGameState->OnToyCaptured(this, AICharacter);
 
 			Destroy();
-			
 		}
 	}
+}
+
+float AToy::GetScore() const
+{
+	return Score;
+}
+
+UStaticMeshComponent* AToy::GetStaticMesh() const
+{
+	return StaticMesh;
 }
 

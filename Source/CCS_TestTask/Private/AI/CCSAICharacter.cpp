@@ -4,6 +4,7 @@
 #include "AI/CCSAICharacter.h"
 
 #include "Core/CCSGameStateBase.h"
+#include "Net/UnrealNetwork.h"
 
 
 ACCSAICharacter::ACCSAICharacter()
@@ -12,13 +13,26 @@ ACCSAICharacter::ACCSAICharacter()
 
 }
 
+void ACCSAICharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ACCSAICharacter, TargetToy);
+}
+
 void ACCSAICharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (ACCSGameStateBase* CCSGameState = Cast<ACCSGameStateBase>(GetWorld()->GetGameState()))
+	if (HasAuthority())
 	{
-		CCSGameState->RegisterNewParticipant(this);
+		if (ACCSGameStateBase* CCSGameState = Cast<ACCSGameStateBase>(GetWorld()->GetGameState()))
+		{
+			CCSGameState->RegisterNewParticipant(this);
+
+			CCSGameState->OnToyLaunchedDelegate.AddDynamic(this, &ACCSAICharacter::OnToyLaunched);
+			CCSGameState->OnToyCapturedDelegate.AddDynamic(this, &ACCSAICharacter::OnToyCaptured);
+		}
 	}
 }
 
@@ -38,5 +52,15 @@ void ACCSAICharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+}
+
+void ACCSAICharacter::OnToyLaunched(AToy* InToy)
+{
+	TargetToy = InToy;
+}
+
+void ACCSAICharacter::OnToyCaptured(AActor* InActor)
+{
+	TargetToy = nullptr;
 }
 

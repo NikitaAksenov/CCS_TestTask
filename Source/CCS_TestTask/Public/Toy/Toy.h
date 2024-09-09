@@ -19,6 +19,7 @@ public:
 	AToy();
 
 protected:
+	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 
 public:	
@@ -39,4 +40,11 @@ protected:
 protected:
 	UFUNCTION()
 	void OnToyBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+public:
+	UFUNCTION(BlueprintCallable)
+	float GetScore() const;
+
+	UFUNCTION(BlueprintCallable)
+	UStaticMeshComponent* GetStaticMesh() const;
 };

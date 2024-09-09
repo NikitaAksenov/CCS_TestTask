@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Toy/ToyComponent.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -47,8 +48,12 @@ ACCS_TestTaskCharacter::ACCS_TestTaskCharacter()
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	//FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	FollowCamera->SetupAttachment(RootComponent);
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+
+	ToyComponent = CreateDefaultSubobject<UToyComponent>(TEXT("ToyComponent"));
+	ToyComponent->SetupAttachment(FollowCamera);
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
@@ -86,6 +91,9 @@ void ACCS_TestTaskCharacter::SetupPlayerInputComponent(UInputComponent* PlayerIn
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACCS_TestTaskCharacter::Look);
+
+		EnhancedInputComponent->BindAction(SelectNextToyAction, ETriggerEvent::Started, this, &ACCS_TestTaskCharacter::SelectNextToy);
+		EnhancedInputComponent->BindAction(LaunchToyAction, ETriggerEvent::Started, this, &ACCS_TestTaskCharacter::LaunchToy);
 	}
 	else
 	{
@@ -127,4 +135,14 @@ void ACCS_TestTaskCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+void ACCS_TestTaskCharacter::SelectNextToy()
+{
+	ToyComponent->SelectNextToy();
+}
+
+void ACCS_TestTaskCharacter::LaunchToy()
+{
+	ToyComponent->LaunchToy();
 }

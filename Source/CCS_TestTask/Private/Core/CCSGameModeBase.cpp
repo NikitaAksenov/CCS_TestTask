@@ -3,3 +3,7 @@
 
 #include "Core/CCSGameModeBase.h"
 
+float ACCSGameModeBase::GetGameDuration() const
+{
+	return GameDuration;
+}
